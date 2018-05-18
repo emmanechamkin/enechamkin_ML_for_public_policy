@@ -852,7 +852,7 @@ def evaluate_clf(type_list=None, y_test=None, y_pred=None, threshold=None):
         count = count + 1
         
     if prec_flag == 2:
-        sklearn.metrics.precision_recall_curve(y_test, y_pred[:,1])
+        sk.metrics.precision_recall_curve(y_test, y_pred[:,1])
         
     assert count == len(type_list), "You seem to have included a type of metric that I cannot accomodate"
     
