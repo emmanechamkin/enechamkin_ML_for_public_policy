@@ -550,6 +550,13 @@ def cycle_through(time_dfs, clf_list, r, param_dict, features, y_column, thresho
         test_start, test_end = time_dfs[i]['test_start'], time_dfs[i]['test_end']
         train, test = time_dfs[i]['df_train'], time_dfs[i]['df_test']
         
+        if 'svm' in clf_list:
+            print("running svm model...")
+            r, yt, yp, model = add_svm_eval(train, test, features, y_column, param_dict, r, flag=True)
+            r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
+            r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
+            temp['svm'] = model
+        
         if 'bagging' in clf_list:
             print("running bagging model...")
             r, yt, yp, model = add_bagging_eval(train, test, features, y_column, param_dict, r)
@@ -590,14 +597,7 @@ def cycle_through(time_dfs, clf_list, r, param_dict, features, y_column, thresho
             r, yt, yp, model = add_rf_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['random_forest'] = model
-            
-        if 'svm' in clf_list:
-            print("running svm model...")
-            r, yt, yp, model = add_svm_eval(train, test, features, y_column, param_dict, r)
-            r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
-            r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['svm'] = model
+            temp['random_forest'] = model           
 
         models[i] = temp
         
@@ -657,7 +657,7 @@ def run_svm(train, test, features, y_col, param_dict):
     sv = Pipeline([('scaler', StandardScaler()), ('clf', svm.SVC())])      
     # could add if I added SVM to hyperparameter search
     sv.fit(X_train, y_train)
-    y_pred = sv.predict_proba(X_test)  
+    y_pred = sv.predict(X_test)  
     return y_test, y_pred, sv
 
 def run_rf(train, test, features, y_col, param_dict):
@@ -819,7 +819,11 @@ def evaluate_clf(type_list=None, y_test=None, y_pred=None, threshold=None):
    
     type_list = ['accuracy', 'f1', 'roc_auc', 'precision', 'recall'] if type_list is None else type_list
     
-    y_metric = [1 if (i >= threshold) else 0 for i in y_pred[:,1]] 
+    if hasattr(y_pred, '__len__'):
+        y_metric = y_pred
+        
+    else:
+        y_metric = [1 if (i >= threshold) else 0 for i in y_pred[:,1]] 
     
     if 'accuracy' in type_list:
         accuracy = metrics.accuracy_score(y_test,y_metric)
