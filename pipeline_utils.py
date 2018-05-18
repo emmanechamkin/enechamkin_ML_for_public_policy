@@ -654,12 +654,11 @@ def run_svm(train, test, features, y_col, param_dict):
         bag (classifier)
     '''
     X_train, X_test, y_train, y_test = train[features], test[features], train[y_col], test[y_col]
-    if 'svm' not in param_dict.keys():
-        svm = Pipeline([('scaler', StandardScaler()), ('clf', svm.SVC())])      
+    sv = Pipeline([('scaler', StandardScaler()), ('clf', svm.SVC())])      
     # could add if I added SVM to hyperparameter search
-    svm.fit(X_train, y_train)
-    y_pred = svm.predict_proba(X_test)  
-    return y_test, y_pred, svm
+    sv.fit(X_train, y_train)
+    y_pred = sv.predict_proba(X_test)  
+    return y_test, y_pred, sv
 
 def run_rf(train, test, features, y_col, param_dict):
     '''
@@ -852,7 +851,7 @@ def evaluate_clf(type_list=None, y_test=None, y_pred=None, threshold=None):
         count = count + 1
         
     if prec_flag == 2:
-        sk.metrics.precision_recall_curve(y_test, y_pred[:,1])
+        precision_recall_curve(y_test, y_pred[:,1])
         
     assert count == len(type_list), "You seem to have included a type of metric that I cannot accomodate"
     
