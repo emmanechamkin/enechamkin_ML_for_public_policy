@@ -3,11 +3,13 @@ import pandas as pd
 import numpy as np
 import datetime
 import re
+import collections
 import os
 import seaborn as sns
 import graphviz
-import collections
+import scikitplot as skplt
 from sklearn import linear_model
+from sklearn.metrics import accuracy_score, roc_auc_score
 from sklearn import metrics
 from sklearn import tree
 from sklearn.pipeline import Pipeline
@@ -20,11 +22,13 @@ from sklearn.metrics import accuracy_score, roc_auc_score, precision_recall_fsco
 from sklearn import ensemble 
 from sklearn import neighbors
 import functools
+import matplotlib.colors as colors
 import matplotlib.pyplot as plt
+import matplotlib.cm as cmap
+import matplotlib.lines as lines
 pd.options.display.max_rows = 999
 pd.options.display.max_columns = 999
 get_ipython().magic('matplotlib inline')
-
 
 # ============================ #
 # READING AND EXPLORING DATA   #
@@ -547,6 +551,7 @@ def cycle_through(time_dfs, clf_list, r, param_dict, features, y_column, thresho
     models = {}
     for i in time_dfs:
         temp = {}
+        count = 0
         train_start, train_end = time_dfs[i]['train_start'], time_dfs[i]['train_end']
         test_start, test_end = time_dfs[i]['test_start'], time_dfs[i]['test_end']
         train, test = time_dfs[i]['df_train'], time_dfs[i]['df_test']
@@ -556,51 +561,56 @@ def cycle_through(time_dfs, clf_list, r, param_dict, features, y_column, thresho
             r, yt, yp, model = add_svm_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list, True)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['svm'] = model
+            temp['svm'] = {'model': model, 'y_pred': yp, 'y_test': yt}
+            count=count+1
         
         if 'bagging' in clf_list:
             print("running bagging model...")
             r, yt, yp, model = add_bagging_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['bagging'] = model
+            temp['bagging'] = {'model': model, 'y_pred': yp, 'y_test': yt}
+            count=count+1   
         
         if 'boosting' in clf_list:
             print("running boosting model...")
             r, yt, yp, model = add_bagging_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['boosting'] = model
+            temp['boosting'] = {'model': model, 'y_pred': yp, 'y_test': yt}
+            count=count+1
             
         if 'knn' in clf_list:
             print("running knn model...")
             r, yt, yp, model = add_knn_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['knn'] = model
+            temp['knn'] = {'model': model, 'y_pred': yp, 'y_test': yt}
+            count=count+1
             
         if 'logistic_regression' in clf_list:
             print("running logistic regression model...")
             r, yt, yp, model = add_logistic_eval(train, test, features, y_column, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['logistic_regression'] = model
+            temp['logistic_regression'] = {'model': model, 'y_pred': yp, 'y_test': yt}
+            count=count+1
             
         if 'decision_tree' in clf_list:
             print("running decision tree model...")
             r, yt, yp, model = add_dt_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['decision_tree'] = model
+            temp['decision_tree'] = {'model': model, 'y_pred': yp, 'y_test': yt}
 
         if 'random_forest' in clf_list:
             print("running random forest model...")
             r, yt, yp, model = add_rf_eval(train, test, features, y_column, param_dict, r)
             r = add_metrics_to_dict(r, yt, yp, type_list, threshold_list)
             r = update_dict_row(train_start, train_end, test_start, test_end, yt, r)
-            temp['random_forest'] = model           
+            temp['random_forest'] = {'model': model, 'y_pred': yp, 'y_test': yt}
 
-        models[i] = temp
+        models['test_start ' + str(test_start)[:9]] = temp
         
     return pd.DataFrame(collections.OrderedDict(r)), models
 
@@ -857,7 +867,7 @@ def evaluate_clf(type_list=None, y_test=None, y_pred=None, threshold=None, svm=F
         count = count + 1
         
     if prec_flag == 2:
-        precision_recall_curve(y_test, y_pred[:,1])
+        precision_recall_curve(y_test, y_metric)
         
     assert count == len(type_list), "You seem to have included a type of metric that I cannot accomodate"
     
@@ -1104,3 +1114,22 @@ def add_svm_eval(train, test, features, y_column, final_params, r):
     r['model'].append('svm') 
     add_params_to_table(r, 'svm', final_params)
     return r, yt, yp, model
+
+# -------- PLOTTING ------------- #
+def plot_precision_recall(model_dict=None, color_list=None):
+    '''
+    PURPOSE: makes precision recall plot
+    '''
+    for time in model_dict.keys():
+        handles = []
+        fig, ax = plt.subplots()
+
+        for i, model in enumerate(model_dict[time].keys()):
+            if model != 'svm':
+                cmap=colors.ListedColormap(colors=color_list[i])
+                yp, yt = model_dict[time][model]['y_pred'], model_dict[time][model]['y_test']
+                t = 'Precisision_recall for ' + str(time)
+                skplt.metrics.plot_precision_recall(yt, yp, classes_to_plot=[1], 
+                                            plot_micro=False, cmap=cmap, ax=ax, title=t) 
+                handles.append(lines.Line2D([], [], color=color_list[i], label=model))  
+        plt.legend(handles=handles)
