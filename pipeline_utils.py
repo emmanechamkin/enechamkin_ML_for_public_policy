@@ -63,7 +63,7 @@ def data_summary_stats(df, zparam=None, outlier_threshold=None, hist_draw=False,
     colnames = df.columns[1:]
     outlier_dict = {}
     ## updated here
-    get_corr(df, ptitle=None)
+    get_corr(df, ptitle=ptitle)
     for col in colnames:
         ## UPDATED HERE
         get_column_dist(df, col)
@@ -227,6 +227,8 @@ def make_discretized(df, var_of_interest, num_buckets=4):
     new_col_name = str(var_of_interest) + '_category'
     df[new_col_name] = pd.cut(working_series, num_buckets)
     df_append = pd.get_dummies(data=df[new_col_name])
+    df_append.columns = [var_of_interest+str(col) for col in df_append.columns]
+    df = df.drop(new_col_name, axis=1)
     df = pd.concat([df, df_append], axis=1)
     return df
 
