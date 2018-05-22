@@ -853,23 +853,16 @@ def evaluate_clf(type_list=None, y_test=None, y_pred=None, threshold=None, svm=F
         precision = metrics.precision_score(y_test,y_metric)
         rv['precision at '+str(threshold)] = precision
         count = count + 1
-        prec_flag = 1
-
 
     if 'recall' in type_list:
         recall = metrics.recall_score(y_test,y_metric)
         rv['recall at '+str(threshold)] = recall
         count = count + 1
-        prec_flag = 2
-
 
     if 'roc_auc' in type_list:
         roc_auc = roc_auc_score(y_test, y_metric)
         rv['roc_auc at '+str(threshold)] = roc_auc
         count = count + 1
-        
-    if prec_flag == 2:
-        precision_recall_curve(y_test, y_metric)
         
     assert count == len(type_list), "You seem to have included a type of metric that I cannot accomodate"
     
